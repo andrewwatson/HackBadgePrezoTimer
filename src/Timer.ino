@@ -91,9 +91,11 @@ void updateDisplay() {
     }
 }
 
-void play_sequence(int framerate, uint32_t sequence[][16]) {
+void play_sequence(uint8_t framerate, uint32_t sequence[][16]) {
 
-  uint16_t animation_length = (sizeof(sequence) / sizeof(sequence[0]));    //The number of frames in the above array
+  uint16_t animation_length = (sizeof(sequence[0]) / sizeof(sequence));    //The number of frames in the above array
+
+  // Particle.publish("debug", String::format("Length %d %d %d", sizeof(sequence) , sizeof(sequence[0]), animation_length));
   //Check if enough time has passed between frames
   if(time_since(begin) < framerate)
   {
