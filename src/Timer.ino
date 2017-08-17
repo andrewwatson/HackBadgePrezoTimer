@@ -65,6 +65,7 @@ void setup() {
     currentMode = MODE_INACTIVE;
     delay(25);
     Particle.function("start", startTimer);
+    Particle.function("stop", stopTimer);
 }
 
 int startTimer(String command) {
@@ -72,6 +73,12 @@ int startTimer(String command) {
     currentMode = MODE_RUNNING;
     state_transition();
     return 0;
+}
+
+int stopTimer(String command) {
+  currentMode = MODE_INACTIVE;
+  state_transition();
+  return 0;
 }
 
 void updateDisplay() {
@@ -86,7 +93,7 @@ void updateDisplay() {
 
 void play_sequence(int framerate, uint32_t sequence[][16]) {
 
-    uint16_t animation_length = (sizeof(sequence) / sizeof(sequence[0]));    //The number of frames in the above array
+  uint16_t animation_length = (sizeof(sequence) / sizeof(sequence[0]));    //The number of frames in the above array
   //Check if enough time has passed between frames
   if(time_since(begin) < framerate)
   {
@@ -122,6 +129,7 @@ void play_sequence(int framerate, uint32_t sequence[][16]) {
 
   return;
 }
+
 //**************************************************
 //Return the number of milliseconds since start_time
 uint32_t time_since(uint32_t start_time)
