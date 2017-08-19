@@ -85,15 +85,15 @@ void updateDisplay() {
     
     switch (currentMode) {
         case MODE_RUNNING:
-            play_sequence(200, snake_animation_lut);
+            play_sequence(100, yellow_wave_data, 17);
         break;
         
     }
 }
 
-void play_sequence(uint8_t framerate, uint32_t sequence[][16]) {
+void play_sequence(uint8_t framerate, uint32_t sequence[][16], uint16_t animation_length) {
 
-  uint16_t animation_length = (sizeof(sequence[0]) / sizeof(sequence));    //The number of frames in the above array
+  // uint16_t animation_length = (sizeof(sequence[0]) / sizeof(sequence));    //The number of frames in the above array
 
   // Particle.publish("debug", String::format("Length %d %d %d", sizeof(sequence) , sizeof(sequence[0]), animation_length));
   //Check if enough time has passed between frames
@@ -125,8 +125,6 @@ void play_sequence(uint8_t framerate, uint32_t sequence[][16]) {
   if(++frame >= animation_length)
   {
     frame = 0;
-    // missed_call = false;
-    // rain_flashes++;
   }
 
   return;
