@@ -24,6 +24,7 @@ uint32_t green = grid.Color(0, 255, 0);
 uint32_t blue = grid.Color(0, 0, 255);
 uint32_t white = grid.Color(255, 255, 255);
 uint32_t magenta = grid.Color(255, 0, 255);
+uint32_t yellow = grid.Color(255,255,0);
 uint32_t black = grid.Color(0,0,0);
 
 // uint16_t custom_animation_framerate = 200;
@@ -40,6 +41,13 @@ const uint8_t pixel_map[] = {
   3,4,11,12
 };
 
+const uint8_t chase_map[] = {
+  0, 7, 8, 15,
+  14, 13, 12, 11,
+  4, 3, 2, 1,
+  6, 9, 10, 5
+};
+
 //***** these modes are used to change state from green to yellow and to red as time runs out
 #define MODE_INACTIVE 0
 #define MODE_RUNNING 1
@@ -50,52 +58,111 @@ const uint8_t pixel_map[] = {
 #define DURATION_WARNING 3000
 #define DURATION_SHUTOFF 3000
 
+uint32_t currentColor = black;
+
 int currentMode;
+int currentLevel;
+int startTime;
+int lastCheck;
+
+const int timerDuration = 8 * 60 * 1000;
+const uint8_t timerBrightness = 40;
+const double warningThreshold = 0.80;
+const double cutoffThreshold = 0.95;
 
 void setup() {
 
-    grid.begin();
-    delay(50);
-    grid.setBrightness(100);
-    grid.clear();
-    grid.show();
+  grid.begin();
+  delay(50);
+  grid.setBrightness(timerBrightness);
+  grid.clear();
+  grid.show();
 
-    Serial.begin(115200);
-    
-    currentMode = MODE_INACTIVE;
-    delay(25);
-    Particle.function("start", startTimer);
-    Particle.function("stop", stopTimer);
+  Serial.begin(115200);
+  
+  currentMode = MODE_INACTIVE;
+  delay(25);
+  Particle.function("start", startTimer);
+  Particle.function("stop", stopTimer);
+
+  currentLevel = 0;
+  Particle.publish("timer", "ONLINE");
+  fill_worm(red);
+  fill_worm(green);
+  fill_worm(magenta);
+  fill_worm(yellow);
+  fill_worm(black);
 }
 
 int startTimer(String command) {
+  currentMode = MODE_RUNNING;
+  currentLevel = 0;    
+  state_transition();
 
-    currentMode = MODE_RUNNING;
-    state_transition();
-    return 0;
+  fill_worm(green);
+  Particle.publish("timer", "ENTER RUNNING STATE");
+  startTime = millis();
+  lastCheck = startTime;
+
+  return 0;
 }
 
 int stopTimer(String command) {
   currentMode = MODE_INACTIVE;
   state_transition();
+  fill_worm(white);
+  fill_worm(black);
   return 0;
 }
 
 void updateDisplay() {
-    
-    switch (currentMode) {
-        case MODE_RUNNING:
-            play_sequence(100, yellow_wave_data, 17);
-        break;
-        
+
+  if (currentMode != MODE_INACTIVE) {
+    int currentTime = millis();
+    int duration = currentTime - startTime;        
+    float percentComplete = ((float)duration / (float)timerDuration );
+
+    if (currentTime - lastCheck > 5000) {
+      lastCheck = millis();
+      uint32_t tickPixel = grid.getPixelColor(0);
+      grid.setPixelColor(0, white);
+      grid.show();
+      delay(50);
+      grid.setPixelColor(0, tickPixel);
+      grid.show();
+
+      Particle.publish("timer", String::format("STATE %d DURATION %ld PERCENT %0.2f", currentMode, duration, percentComplete));
     }
+
+    switch (currentMode) {
+      case MODE_RUNNING:
+        // set_all_pixels(green, timerBrightness);
+        if (percentComplete > warningThreshold) {
+          currentMode = MODE_WARNING;
+          Particle.publish("timer", String::format("ENTER %s STATE %ld %0.2f", "WARNING", duration, percentComplete));
+          fill_worm(yellow);
+        }
+        break;
+
+      case MODE_WARNING:
+        if (percentComplete > cutoffThreshold) {
+          currentMode = MODE_SHUTOFF;
+          Particle.publish("timer", String::format("ENTER %s STATE %ld %0.2f", "SHUTDOWN", duration, percentComplete));
+          fill_worm(red);
+        }
+        set_all_pixels(yellow, timerBrightness);
+        break;
+      case MODE_SHUTOFF:
+        fill_worm(black);
+        fill_worm(red);
+        delay(500);
+        // set_all_pixels(red, timerBrightness);
+    }
+  }
 }
 
 void play_sequence(uint8_t framerate, uint32_t sequence[][16], uint16_t animation_length) {
 
-  // uint16_t animation_length = (sizeof(sequence[0]) / sizeof(sequence));    //The number of frames in the above array
-
-  // Particle.publish("debug", String::format("Length %d %d %d", sizeof(sequence) , sizeof(sequence[0]), animation_length));
   //Check if enough time has passed between frames
   if(time_since(begin) < framerate)
   {
@@ -174,6 +241,17 @@ void set_all_pixels(uint32_t c, uint8_t brightness)
   }
 
   grid.show();
+}
+
+// fills the grid with a new color, 1 pixel at a time
+void fill_worm(uint32_t c) {
+  
+  for (int i = 0; i < PIXEL_COUNT; i++) {
+    grid.setPixelColor(chase_map[i], c);
+    grid.show();
+    delay(25);
+  }
+  
 }
 
 void loop() {
