@@ -66,7 +66,7 @@ int startTime;
 int lastCheck;
 
 const int timerDuration = 8 * 60 * 1000;
-const uint8_t timerBrightness = 40;
+const uint8_t timerBrightness = 60;
 const double warningThreshold = 0.80;
 const double cutoffThreshold = 0.95;
 
@@ -122,16 +122,14 @@ void updateDisplay() {
     int duration = currentTime - startTime;        
     float percentComplete = ((float)duration / (float)timerDuration );
 
-    if (currentTime - lastCheck > 5000) {
+    if (currentTime - lastCheck > 60000) {
       lastCheck = millis();
       uint32_t tickPixel = grid.getPixelColor(0);
-      grid.setPixelColor(0, white);
-      grid.show();
-      delay(50);
-      grid.setPixelColor(0, tickPixel);
-      grid.show();
+      set_all_pixels(white, timerBrightness);
+      delay(150);
+      set_all_pixels(tickPixel, timerBrightness);
 
-      Particle.publish("timer", String::format("STATE %d DURATION %ld PERCENT %0.2f", currentMode, duration, percentComplete));
+      Particle.publish("timer", String::format("STATE %d D %ld PERCENT %0.2f", currentMode, duration, percentComplete));
     }
 
     switch (currentMode) {
