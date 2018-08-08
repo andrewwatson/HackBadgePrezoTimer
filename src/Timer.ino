@@ -70,6 +70,8 @@ const uint8_t timerBrightness = 60;
 const double warningThreshold = 0.80;
 const double cutoffThreshold = 0.95;
 
+int currentDuration = 0;
+
 void setup() {
 
   grid.begin();
@@ -79,7 +81,7 @@ void setup() {
   grid.show();
 
   Serial.begin(115200);
-  
+
   currentMode = MODE_INACTIVE;
   delay(25);
   Particle.function("start", startTimer);
@@ -95,8 +97,15 @@ void setup() {
 }
 
 int startTimer(String command) {
+
+  int parsedDuration = std::atoi( command );
+
+  if (parsedDuration > 0) {
+    timerDuration = parsedDuration * 1000;
+  }
+  
   currentMode = MODE_RUNNING;
-  currentLevel = 0;    
+  currentLevel = 0;
   state_transition();
 
   fill_worm(green);
@@ -119,10 +128,10 @@ void updateDisplay() {
 
   if (currentMode != MODE_INACTIVE) {
     int currentTime = millis();
-    int duration = currentTime - startTime;        
+    int duration = currentTime - startTime;
     float percentComplete = ((float)duration / (float)timerDuration );
 
-    if (currentTime - lastCheck > 60000) {
+    if (currentTime - lastCheck > 5000) {
       lastCheck = millis();
       uint32_t tickPixel = grid.getPixelColor(0);
       set_all_pixels(white, timerBrightness);
@@ -213,8 +222,7 @@ void state_transition(void)
 
 //******************************************
 //Set the color and brightness of all pixels
-void set_all_pixels(uint32_t c, uint8_t brightness)
-{
+void set_all_pixels(uint32_t c, uint8_t brightness) {
   uint8_t i;
 
   //***************************
@@ -243,13 +251,13 @@ void set_all_pixels(uint32_t c, uint8_t brightness)
 
 // fills the grid with a new color, 1 pixel at a time
 void fill_worm(uint32_t c) {
-  
+
   for (int i = 0; i < PIXEL_COUNT; i++) {
     grid.setPixelColor(chase_map[i], c);
     grid.show();
     delay(25);
   }
-  
+
 }
 
 void loop() {
