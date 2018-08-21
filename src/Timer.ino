@@ -65,15 +65,19 @@ int currentLevel;
 int startTime;
 int lastCheck;
 
-const int timerDuration = 8 * 60 * 1000;
-const uint8_t timerBrightness = 60;
+int timerDuration;
+const uint8_t timerBrightness = 40;
 const double warningThreshold = 0.80;
 const double cutoffThreshold = 0.95;
 
 int currentDuration = 0;
 
+int shutoffFlashes = 0;
+
 void setup() {
 
+
+  timerDuration = 10 * 1000;
   grid.begin();
   delay(50);
   grid.setBrightness(timerBrightness);
@@ -90,9 +94,8 @@ void setup() {
   currentLevel = 0;
   Particle.publish("timer", "ONLINE");
   fill_worm(red);
-  fill_worm(green);
-  fill_worm(magenta);
-  fill_worm(yellow);
+  fill_worm(white);
+  fill_worm(blue);
   fill_worm(black);
 }
 
@@ -101,14 +104,19 @@ int startTimer(String command) {
   int parsedDuration = std::atoi( command );
 
   if (parsedDuration > 0) {
-    timerDuration = parsedDuration * 1000;
+    timerDuration = parsedDuration * 60 * 1000;
   }
-  
+
   currentMode = MODE_RUNNING;
+  currentColor = green;
+
   currentLevel = 0;
   state_transition();
 
   fill_worm(green);
+  delay(250);
+  fill_worm(black);
+
   Particle.publish("timer", "ENTER RUNNING STATE");
   startTime = millis();
   lastCheck = startTime;
@@ -133,10 +141,10 @@ void updateDisplay() {
 
     if (currentTime - lastCheck > 5000) {
       lastCheck = millis();
-      uint32_t tickPixel = grid.getPixelColor(0);
-      set_all_pixels(white, timerBrightness);
-      delay(150);
-      set_all_pixels(tickPixel, timerBrightness);
+      // uint32_t tickPixel = grid.getPixelColor(0);
+      set_all_pixels(currentColor, timerBrightness);
+      delay(750);
+      set_all_pixels(black, timerBrightness);
 
       Particle.publish("timer", String::format("STATE %d D %ld PERCENT %0.2f", currentMode, duration, percentComplete));
     }
@@ -147,7 +155,8 @@ void updateDisplay() {
         if (percentComplete > warningThreshold) {
           currentMode = MODE_WARNING;
           Particle.publish("timer", String::format("ENTER %s STATE %ld %0.2f", "WARNING", duration, percentComplete));
-          fill_worm(yellow);
+          // fill_worm(yellow);
+          currentColor = yellow;
         }
         break;
 
@@ -155,14 +164,26 @@ void updateDisplay() {
         if (percentComplete > cutoffThreshold) {
           currentMode = MODE_SHUTOFF;
           Particle.publish("timer", String::format("ENTER %s STATE %ld %0.2f", "SHUTDOWN", duration, percentComplete));
-          fill_worm(red);
+          // fill_worm(red);
+          currentColor = red;
         }
-        set_all_pixels(yellow, timerBrightness);
+
+        // set_all_pixels(yellow, timerBrightness);
+        // delay(500);
+        // fill_worm(black);
+        // currentColor = yellow;
         break;
       case MODE_SHUTOFF:
+
+      if (shutoffFlashes < 5) {
+        shutoffFlashes++;
         fill_worm(black);
         fill_worm(red);
         delay(500);
+      } else {
+        currentMode = MODE_INACTIVE;
+      }
+
         // set_all_pixels(red, timerBrightness);
     }
   }
